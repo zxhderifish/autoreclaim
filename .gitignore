@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+# Local data lives in the separate private autoreclaim-data repo, never here:
+/data/
+
+# routine intermediate artifacts (regenerated each run)
+sites.json
+settlements.json

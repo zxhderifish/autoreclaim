@@ -1,0 +1,32 @@
+from autoreclaim.fetch import SOURCES, fetch_all
+
+
+class _FakeResp:
+    def __init__(self, text):
+        self.text = text
+        self.status_code = 200
+
+    def raise_for_status(self):
+        pass
+
+
+class _FakeClient:
+    def __init__(self):
+        self.calls = []
+
+    def get(self, url, timeout=0):
+        self.calls.append(url)
+        return _FakeResp(f"<html>{url}</html>")
+
+
+def test_sources_are_the_six_aggregators():
+    assert len(SOURCES) == 6
+    assert "topclassactions.com" in SOURCES
+
+
+def test_fetch_all_hits_every_source_and_keys_by_domain():
+    client = _FakeClient()
+    out = fetch_all(client=client)
+    assert set(out.keys()) == set(SOURCES.keys())
+    assert out["topclassactions.com"]
+    assert len(client.calls) == 6
