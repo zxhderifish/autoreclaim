@@ -10,7 +10,7 @@ You just talk to it:
 
 It runs weekly, finds settlements you likely qualify for, pre-fills the claim forms, and stops for your OK before submitting anything. Your sensitive details stay encrypted on your own machine.
 
-![AutoReclaim finds settlements for you](assets/demo.gif)
+![AutoReclaim's first discovery — 8 settlements found](assets/demo.png)
 
 > **Status: alpha / building in public.** The core loop works end-to-end, but this is early. Expect rough edges. Issues and PRs welcome.
 
