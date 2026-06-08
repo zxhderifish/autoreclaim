@@ -16,7 +16,30 @@ def load_profile(path) -> dict:
         # common_pack = broad "almost-everyone" defaults; kept separate so matching can
         # treat them conservatively (low confidence) vs the user's deliberate keywords.
         "common_pack": [k.strip().lower() for k in data.get("common_pack", []) if k.strip()],
+        "emails": profile_emails(data),
     }
+
+
+def profile_emails(profile: dict) -> list[str]:
+    """All of the user's emails, lowercased + deduped.
+
+    Supports `emails: [...]` (preferred — people have several) and the older single
+    `email: "..."` string for backward compatibility. Powers the data-breach scan.
+    """
+    raw = profile.get("emails")
+    if isinstance(raw, list):
+        vals = raw
+    elif profile.get("email"):
+        vals = [profile["email"]]
+    else:
+        vals = []
+    seen, out = set(), []
+    for e in vals:
+        e = (e or "").strip().lower()
+        if e and e not in seen:
+            seen.add(e)
+            out.append(e)
+    return out
 
 
 def score(settlement: Settlement, profile: dict) -> tuple[int, list[str]]:

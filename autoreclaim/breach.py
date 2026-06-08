@@ -62,11 +62,36 @@ def breach_keywords(breaches: list[str]) -> list[str]:
     return out
 
 
+def collect_breaches(emails, client=None) -> list[str]:
+    """Merge breach/site names across MANY emails (people have several), deduped in order."""
+    client = client or _default_client()
+    seen, out = set(), []
+    for email in emails:
+        for name in fetch_breaches(email, client=client):
+            if name not in seen:
+                seen.add(name)
+                out.append(name)
+    return out
+
+
 def main() -> None:
+    """Print company keywords from breaches across the user's emails.
+
+    Usage:
+      python -m autoreclaim.breach a@x.com b@y.com   # scan the given emails
+      python -m autoreclaim.breach                    # scan every email in profile.json
+    """
     import json
     import sys
-    email = sys.argv[1]
-    print(json.dumps(breach_keywords(fetch_breaches(email))))
+
+    emails = sys.argv[1:]
+    if not emails:
+        from pathlib import Path
+        from .config import data_dir
+        from .match import profile_emails
+        p = data_dir() / "profile.json"
+        emails = profile_emails(json.loads(p.read_text())) if p.exists() else []
+    print(json.dumps(breach_keywords(collect_breaches(emails))))
 
 
 if __name__ == "__main__":

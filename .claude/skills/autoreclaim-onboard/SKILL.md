@@ -1,13 +1,14 @@
 ---
 name: autoreclaim-onboard
-description: Use to set up AutoReclaim end-to-end after cloning the code repo — collects the category profile by chat, sets up a separate data store, guides local encrypted PII, picks a run mode (local-only OR cloud-discovery+local-filing), and creates the schedule via the scheduled-task tool. The model never sees PII values.
+description: Use to set up AutoReclaim end-to-end after cloning the code repo — collects the category profile by chat, sets up a separate data store, records encrypted PII, picks a run mode (local-only OR cloud-discovery+local-filing), and creates the schedule via the scheduled-task tool. By default PII is entered locally and the model never sees it; an explicit, clearly-warned opt-in lets the model record it instead.
 ---
 
 # AutoReclaim onboarding
 
 Run from the cloned AutoReclaim **code** repo on the user's Mac. Goal: take a fresh
 clone to a working, scheduled setup. Personal data goes in a SEPARATE data store so the
-code repo stays shareable; PII stays local and must NOT pass through this conversation.
+code repo stays shareable. PII stays local; by default it must NOT pass through this
+conversation — the only exception is the explicit, user-consented shortcut in Step 5.
 
 **For discrete choices (run mode) use the `AskUserQuestion` tool** (interactive,
 highlighted options). For the brand profile (Step 2) just show a grouped markdown list
@@ -103,12 +104,14 @@ Then write the profile — keep the user's **deliberate picks** separate from th
 - `keywords`: the user's deliberate picks (bank / carrier / ISP / insurance / car / airline
   + any brand they explicitly added or kept)
 - `common_pack`: the broad default pack you auto-added (everyone-has-these)
-- `email`: the user's email — powers the **free data-breach scan** (XposedOrNot) and Gmail gap-fill. Ask for it (they've agreed email can be used for these).
+- `emails`: a LIST of the user's emails — powers the **free data-breach scan** (XposedOrNot)
+  and Gmail gap-fill. Ask: *"What email(s) do you use? Add any work or old ones too — more
+  emails means more breach matches."* (they've agreed email can be used for these.)
 
 ```bash
 mkdir -p ../autoreclaim-data && cat > ../autoreclaim-data/profile.json <<'JSON'
 {
-  "email": "you@example.com",
+  "emails": ["you@example.com", "you.work@company.com"],
   "keywords": ["amex", "chase", "bank of america", "verizon", "xfinity", "toyota", "geico"],
   "common_pack": ["amazon", "google", "apple", "netflix", "spotify", "paypal", "uber", "equifax", "experian", "transunion"]
 }
@@ -117,14 +120,49 @@ JSON
 Replace with the real values (all lowercase). **Write this two-key JSON directly — don't
 run `build_profile.py`, which would flatten the split.** Confirm the file exists.
 
-## Step 5 — PII (LOCAL ONLY — do NOT collect these values yourself)
-Full name / address / phone must NEVER pass through this conversation or the model.
-Tell the user to run, in their own terminal:
-```bash
-.venv/bin/python onboarding/setup_pii.py
-```
-and enter details there. Confirm only that `../autoreclaim-data/pii.enc` now exists
-(gitignored) — without reading it.
+## Step 5 — PII (name / address / phone, for auto-filling claim forms)
+Claim forms need the user's real name, address, email, phone. Offer **two ways** to record
+them and state the privacy trade-off up front. Use **`AskUserQuestion`**:
+
+> **"How do you want to enter the details claim forms need (name, address, phone)?"**
+> - **I'll type it myself (most private)** — you run one command in your own terminal; the
+>   values never reach the AI assistant or any server.
+> - **You record it for me (easier)** — tell me here and I'll encrypt it into the local file.
+>   ⚠️ Your name/address/phone will pass through the AI assistant (and its cloud) during
+>   setup. They're still stored only on your machine and never committed to any repo — but
+>   the assistant will have seen them.
+
+Default to / recommend the first option. Pick the path they choose:
+
+- **"I'll type it myself"** → tell the user to run, in their own terminal:
+  ```bash
+  .venv/bin/python onboarding/setup_pii.py
+  ```
+  Confirm only that `../autoreclaim-data/pii.enc` now exists (gitignored) — without reading it.
+
+- **"You record it for me"** (only after they chose this knowing the trade-off) → collect
+  full name, address (line1/line2/city/state/zip), email, phone in chat, then write the
+  encrypted file yourself. Pass the values via a **stdin heredoc, never as CLI args** (args
+  leak into shell history / process list):
+  ```bash
+  .venv/bin/python - <<'PY'
+  from autoreclaim.pii import save_pii, load_pii
+  from autoreclaim.config import data_dir
+  from onboarding.setup_pii import validate_pii
+  data = {
+    "full_name": "...", "address_line1": "...", "address_line2": "",
+    "city": "...", "state": "...", "zip": "...",
+    "email": "...", "phone": "...", "payout_preference": "",
+  }
+  out = data_dir() / "pii.enc"
+  save_pii(out, data)
+  assert load_pii(out) == data            # decryption round-trips
+  bad = validate_pii(data)
+  print("pii.enc written, verified" + (f"; double-check these fields: {bad}" if bad else ""))
+  PY
+  ```
+  Fill the values from what the user told you. If `validate_pii` flags fields, ask the user
+  to fix them and rewrite. Confirm `../autoreclaim-data/pii.enc` exists.
 
 ## Step 6 — Create the schedule (scheduled-task MCP tool)
 Make a LOCAL weekly task with `create_scheduled_task`. The prompt must be
@@ -162,9 +200,10 @@ As the last step, **immediately run one real discovery pass** so the user sees r
 right away — don't call it a "smoke test", just run it. Do it the SAME way the weekly task
 will: read CLAUDE.md and follow its discovery flow (fetch → extract per its schema/method →
 `run_discovery`), then the Mode 1 desktop notification + pre-fill. Show the user the
-resulting queue (settlement · est. payout to them · deadline · proof? · confidence · claim
-link). This writes a real `queue.jsonl` — not a simulation. (To re-run anytime: Routines →
-`autoreclaim-weekly` → Run now.)
+resulting queue as a **table** with columns: settlement · est. payout to them · deadline ·
+proof? · confidence · **Claim link** (the clickable `claim_url`, so they can reclaim
+manually if they'd rather not wait for the filing step). This writes a real `queue.jsonl` —
+not a simulation. (To re-run anytime: Routines → `autoreclaim-weekly` → Run now.)
 
 ## Finish
 Commit the profile (Mode 2 also push). Never add pii.enc.

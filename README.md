@@ -8,7 +8,7 @@ You just talk to it:
 > *"File the ones you found."*
 > *"Submit the Equifax claim."*
 
-It runs weekly, finds settlements you likely qualify for, pre-fills the claim forms, and stops for your OK before submitting anything. Your personal data never leaves your machine.
+It runs weekly, finds settlements you likely qualify for, pre-fills the claim forms, and stops for your OK before submitting anything. Your sensitive details stay encrypted on your own machine.
 
 ![AutoReclaim finds settlements for you](assets/demo.gif)
 
@@ -36,7 +36,7 @@ And it runs on infrastructure you already have. The weekly discovery executes as
 AutoReclaim is built around two hard rules baked into the agent's instructions, not bolted on:
 
 - **Honesty.** It only surfaces settlements you plausibly qualify for, never invents eligibility, and never submits a claim without your explicit confirmation. You are always the one attesting.
-- **Privacy.** Your name, address, and phone number are encrypted locally (key in your OS keychain) and **never pass through the model, the cloud, or any repo.** The code repo and your data are deliberately kept in separate places.
+- **Privacy.** Your name, address, and phone number are encrypted on your machine (key in your OS keychain) and **never committed to any repo.** By default you enter them directly on your device, so they never pass through the AI or any server. If you'd rather, you can opt in to letting the assistant record them for you — it warns you clearly first that this routes your details through the AI during setup. Either way, the code and your data live in separate places.
 
 ## How it's wired
 

@@ -46,8 +46,9 @@ NOT use `javascript_tool` to read hrefs (the admin sites often block it).
       `.venv/bin/python -m autoreclaim.mark_status <id> submitted`
 
 ## 4. Finish
-Give a status overview (filed / ready-to-submit / needs_human — with why + deadlines).
-Then persist the queue:
+Give a status overview as a table (filed / ready-to-submit / needs_human — with why,
+deadlines, and each item's **claim link** (`claim_url`) so the user can finish any of them
+manually). Then persist the queue:
 ```bash
 git -C ../autoreclaim-data add queue.jsonl && git -C ../autoreclaim-data commit -m "chore: filed claims"
 # Mode 2 (cloud data repo) only: git -C ../autoreclaim-data push

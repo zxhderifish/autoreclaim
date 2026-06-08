@@ -1,5 +1,5 @@
 from autoreclaim.models import Settlement, make_id
-from autoreclaim.match import load_profile, score
+from autoreclaim.match import load_profile, score, profile_emails
 
 
 def _profile(tmp_path, keywords):
@@ -55,3 +55,22 @@ def test_load_profile_common_pack_defaults_empty(tmp_path):
     p = tmp_path / "profile.json"
     p.write_text(json.dumps({"keywords": ["chase"]}))
     assert load_profile(p)["common_pack"] == []
+
+
+def test_profile_emails_reads_list():
+    prof = {"emails": ["A@X.com", "b@y.com"]}
+    assert profile_emails(prof) == ["a@x.com", "b@y.com"]
+
+
+def test_profile_emails_accepts_single_email_alias():
+    # backward-compat: old profiles used a single "email" string
+    assert profile_emails({"email": "Me@Example.com"}) == ["me@example.com"]
+
+
+def test_profile_emails_dedupes_and_drops_blanks():
+    prof = {"emails": ["a@x.com", "  ", "A@X.com", "b@y.com"]}
+    assert profile_emails(prof) == ["a@x.com", "b@y.com"]
+
+
+def test_profile_emails_empty_when_none():
+    assert profile_emails({"keywords": ["chase"]}) == []
