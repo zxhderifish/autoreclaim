@@ -19,3 +19,24 @@ def test_mark_unknown_id_raises(tmp_path):
     qp.write_text(json.dumps({"id": "a", "status": "pending_confirm"}) + "\n")
     with pytest.raises(KeyError):
         mark("zzz", "submitted", queue_path=qp)
+
+
+def test_mark_with_note_stores_status_note(tmp_path):
+    qp = tmp_path / "queue.jsonl"
+    qp.write_text(json.dumps({"id": "a", "status": "pending_confirm"}) + "\n")
+
+    mark("a", "needs_human", note="needs Class Member ID from notice; deadline 9/14", queue_path=qp)
+
+    row = json.loads(qp.read_text().splitlines()[0])
+    assert row["status"] == "needs_human"
+    assert "Class Member ID" in row["status_note"]
+
+
+def test_mark_without_note_leaves_no_status_note(tmp_path):
+    qp = tmp_path / "queue.jsonl"
+    qp.write_text(json.dumps({"id": "a", "status": "pending_confirm"}) + "\n")
+
+    mark("a", "submitted", queue_path=qp)
+
+    row = json.loads(qp.read_text().splitlines()[0])
+    assert "status_note" not in row
