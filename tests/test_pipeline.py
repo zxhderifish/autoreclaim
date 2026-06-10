@@ -54,3 +54,23 @@ def test_pipeline_does_not_re_notify_already_known(tmp_path):
     assert len(queue) == 1
     assert queue[0]["status"] == "submitted"     # preserved
     assert new_pending == []                      # already known -> no email row
+
+
+def test_class_member_id_flows_into_queue_row(tmp_path):
+    import json
+    profile = tmp_path / "profile.json"
+    profile.write_text(json.dumps({"keywords": ["xfinity"]}))
+
+    parsed = [{
+        "id": "", "source": "x", "title": "Xfinity Breach Settlement",
+        "category_tags": ["xfinity"], "eligible": True,
+        "eligibility_reason": "Found your notice email", "confidence": "high",
+        "class_member_id": "ABC123456",
+    }]
+    from autoreclaim.models import make_id
+    for r in parsed:
+        r["id"] = make_id(r["title"])
+    from autoreclaim.pipeline import run_pipeline
+    queue, new = run_pipeline(parsed, profile_path=profile, existing_queue=[])
+
+    assert queue[0]["class_member_id"] == "ABC123456"

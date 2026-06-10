@@ -158,12 +158,16 @@ Claim forms need the user's real name, address, email, phone. Offer **two ways**
 them and state the privacy trade-off up front. Use **`AskUserQuestion`**:
 
 > **"How do you want to enter the details claim forms need (name, address, phone)?"**
-> - **I'll type it myself (most private)** — you run one command in your own terminal; the
->   values never reach the AI assistant or any server.
+> - **I'll type it myself (private setup)** — you run one command in your own terminal; the
+>   values don't pass through the AI assistant during setup.
 > - **You record it for me (easier)** — tell me here and I'll encrypt it into the local file.
 >   ⚠️ Your name/address/phone will pass through the AI assistant (and its cloud) during
 >   setup. They're still stored only on your machine and never committed to any repo — but
 >   the assistant will have seen them.
+>
+> Either way, heads up: **at filing time the assistant reads these values** from the
+> encrypted file to fill claim forms — that's what assisted filing is. The choice above
+> only controls whether they pass through the assistant during SETUP.
 
 Default to / recommend the first option. Pick the path they choose:
 

@@ -27,6 +27,11 @@ class Settlement:
     needs_proof: bool = False
     attestation_strength: str = "normal"  # normal | strict | unknown
     est_payout: str | None = None
+    # Class Member ID lifted from the administrator's notice email, when discovery
+    # finds one. Proves class membership (high confidence) and lets filing skip the
+    # lookup step. The PIN is deliberately NOT stored — queue.jsonl may be pushed
+    # to the (private) data repo; the PIN is re-read from the email at filing time.
+    class_member_id: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
