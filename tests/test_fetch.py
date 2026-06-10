@@ -30,3 +30,23 @@ def test_fetch_all_hits_every_source_and_keys_by_domain():
     assert set(out.keys()) == set(SOURCES.keys())
     assert out["topclassactions.com"]
     assert len(client.calls) == 6
+
+
+class _FlakyClient:
+    """Fails for one domain, succeeds for the rest."""
+
+    def __init__(self, bad_domain):
+        self.bad_domain = bad_domain
+
+    def get(self, url, timeout=0):
+        if self.bad_domain in url:
+            raise ConnectionError("boom")
+        return _FakeResp(f"<html>{url}</html>")
+
+
+def test_fetch_all_warns_on_stderr_when_a_source_fails(capsys):
+    out = fetch_all(client=_FlakyClient("topclassactions.com"))
+    assert out["topclassactions.com"] == ""
+    err = capsys.readouterr().err
+    assert "topclassactions.com" in err
+    assert "WARN" in err

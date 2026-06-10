@@ -17,6 +17,9 @@ def load_profile(path) -> dict:
         # treat them conservatively (low confidence) vs the user's deliberate keywords.
         "common_pack": [k.strip().lower() for k in data.get("common_pack", []) if k.strip()],
         "emails": profile_emails(data),
+        # Optional coarse location — lets matching include/exclude state-scoped
+        # settlements (e.g. "Washington residents only"). Never street-level PII.
+        "state": (data.get("state") or "").strip().lower(),
     }
 
 
