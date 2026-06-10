@@ -21,7 +21,11 @@ def _default_client():
 
 
 def fetch_all(client=None) -> dict[str, str]:
-    """Return {domain: raw_html}. A failed source maps to '' so others still proceed."""
+    """Return {domain: raw_html}. A failed source maps to '' so others still proceed.
+
+    Failures are warned on stderr (stdout stays clean for piped JSON)."""
+    import sys
+
     client = client or _default_client()
     out: dict[str, str] = {}
     for domain, url in SOURCES.items():
@@ -29,6 +33,7 @@ def fetch_all(client=None) -> dict[str, str]:
             resp = client.get(url, timeout=30)
             resp.raise_for_status()
             out[domain] = resp.text
-        except Exception:
+        except Exception as e:
             out[domain] = ""
+            print(f"WARN: {domain} fetch failed: {e}", file=sys.stderr)
     return out

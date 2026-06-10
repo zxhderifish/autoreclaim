@@ -74,3 +74,17 @@ def test_profile_emails_dedupes_and_drops_blanks():
 
 def test_profile_emails_empty_when_none():
     assert profile_emails({"keywords": ["chase"]}) == []
+
+
+def test_load_profile_passes_through_state_lowercased(tmp_path):
+    import json
+    p = tmp_path / "profile.json"
+    p.write_text(json.dumps({"keywords": ["amazon"], "state": "WA"}))
+    assert load_profile(p)["state"] == "wa"
+
+
+def test_load_profile_state_defaults_to_empty_string(tmp_path):
+    import json
+    p = tmp_path / "profile.json"
+    p.write_text(json.dumps({"keywords": ["amazon"]}))
+    assert load_profile(p)["state"] == ""
