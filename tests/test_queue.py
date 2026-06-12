@@ -26,3 +26,10 @@ def test_upsert_preserves_existing_status_for_known_id():
     assert a["status"] == "submitted"      # status preserved
     assert a["match_score"] == 9           # other fields refreshed
     assert len(out) == 1                   # no duplicate row
+
+
+def test_upsert_preserves_submitted_timestamp():
+    existing = [{"id": "a", "status": "submitted", "submitted_at": "2026-01-01T00:00:00+00:00"}]
+    out = upsert(existing, {"id": "a", "status": "pending_confirm", "submitted_at": None})
+    assert out[0]["status"] == "submitted"
+    assert out[0]["submitted_at"] == "2026-01-01T00:00:00+00:00"

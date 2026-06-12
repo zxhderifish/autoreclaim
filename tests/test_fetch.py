@@ -45,8 +45,18 @@ class _FlakyClient:
 
 
 def test_fetch_all_warns_on_stderr_when_a_source_fails(capsys):
-    out = fetch_all(client=_FlakyClient("topclassactions.com"))
+    out = fetch_all(client=_FlakyClient("topclassactions.com"), curl_fetch=lambda url: "")
     assert out["topclassactions.com"] == ""
     err = capsys.readouterr().err
     assert "topclassactions.com" in err
     assert "WARN" in err
+
+
+def test_fetch_all_recovers_via_curl_when_requests_is_blocked(capsys):
+    out = fetch_all(
+        client=_FlakyClient("topclassactions.com"),
+        curl_fetch=lambda url: "<html>curl got it</html>",
+    )
+    assert out["topclassactions.com"] == "<html>curl got it</html>"
+    err = capsys.readouterr().err
+    assert "recovered via curl" in err

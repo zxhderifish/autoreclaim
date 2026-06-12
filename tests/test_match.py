@@ -88,3 +88,20 @@ def test_load_profile_state_defaults_to_empty_string(tmp_path):
     p = tmp_path / "profile.json"
     p.write_text(json.dumps({"keywords": ["amazon"]}))
     assert load_profile(p)["state"] == ""
+
+
+def test_load_profile_normalizes_ruled_out(tmp_path):
+    import json
+    p = tmp_path / "profile.json"
+    p.write_text(json.dumps({"keywords": ["toyota"], "ruled_out": [" Toyota ", "robinhood"]}))
+    prof = load_profile(p)
+    assert prof["ruled_out"] == ["toyota", "robinhood"]
+
+
+def test_score_skips_ruled_out_brands():
+    from autoreclaim.models import Settlement
+    s = Settlement.from_dict({"id": "x", "source": "s", "title": "Toyota Airbag Settlement",
+                              "category_tags": ["toyota", "auto"]})
+    profile = {"keywords": ["toyota"], "common_pack": [], "ruled_out": ["toyota"]}
+    n, reasons = score(s, profile)
+    assert n == 0 and reasons == []

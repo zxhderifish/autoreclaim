@@ -67,3 +67,43 @@ def test_discover_stays_silent_when_no_finds_and_all_sources_healthy(tmp_path):
                      queue_path=queue_path, sites_path=sites)
 
     assert email == ""
+
+
+def test_discover_reminds_about_unactioned_items_near_deadline(tmp_path):
+    from datetime import date, timedelta
+    profile, settlements, queue_path = _write_basics(tmp_path, [])
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    far = (date.today() + timedelta(days=60)).isoformat()
+    past = (date.today() - timedelta(days=3)).isoformat()
+    rows = [
+        {"id": "a", "title": "BofA ATM Fees", "status": "needs_human",
+         "deadline": soon, "claim_url": "https://bofa/claim",
+         "status_note": "needs Class Member ID"},
+        {"id": "b", "title": "Far Future", "status": "needs_human", "deadline": far},
+        {"id": "c", "title": "Already Filed", "status": "submitted", "deadline": soon},
+        {"id": "d", "title": "Expired", "status": "needs_human", "deadline": past},
+    ]
+    queue_path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+
+    email = discover(settlements_path=settlements, profile_path=profile, queue_path=queue_path)
+
+    assert "BofA ATM Fees" in email
+    assert "https://bofa/claim" in email
+    assert "needs Class Member ID" in email
+    assert "Far Future" not in email
+    assert "Already Filed" not in email
+    assert "Expired" not in email
+
+
+def test_discover_reminders_do_not_duplicate_new_finds(tmp_path):
+    from datetime import date, timedelta
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    profile, settlements, queue_path = _write_basics(tmp_path, [
+        {"id": "", "source": "classaction.org", "title": "Amazon Prime Settlement",
+         "category_tags": ["amazon"], "claim_url": "https://x/claim",
+         "needs_proof": False, "deadline": soon},
+    ])
+
+    email = discover(settlements_path=settlements, profile_path=profile, queue_path=queue_path)
+
+    assert email.count("Amazon Prime Settlement") == 1
