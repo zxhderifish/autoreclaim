@@ -20,7 +20,23 @@ def _default_client():
     return s
 
 
-def fetch_all(client=None) -> dict[str, str]:
+def _curl_fetch(url: str) -> str:
+    """Fallback for sources that reject python-requests' TLS fingerprint
+    (e.g. Cloudflare 403s requests but passes system curl). '' on failure."""
+    import subprocess
+
+    try:
+        proc = subprocess.run(
+            ["curl", "-sS", "--fail", "-L", "--max-time", "30",
+             "-A", _HEADERS["User-Agent"], url],
+            capture_output=True, text=True, timeout=45,
+        )
+        return proc.stdout if proc.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+def fetch_all(client=None, curl_fetch=_curl_fetch) -> dict[str, str]:
     """Return {domain: raw_html}. A failed source maps to '' so others still proceed.
 
     Failures are warned on stderr (stdout stays clean for piped JSON)."""
@@ -34,6 +50,10 @@ def fetch_all(client=None) -> dict[str, str]:
             resp.raise_for_status()
             out[domain] = resp.text
         except Exception as e:
-            out[domain] = ""
-            print(f"WARN: {domain} fetch failed: {e}", file=sys.stderr)
+            body = curl_fetch(url)
+            out[domain] = body
+            if body:
+                print(f"WARN: {domain} blocked requests ({e}); recovered via curl", file=sys.stderr)
+            else:
+                print(f"WARN: {domain} fetch failed: {e}", file=sys.stderr)
     return out

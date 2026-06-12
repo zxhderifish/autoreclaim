@@ -7,7 +7,7 @@ from pathlib import Path
 from .models import make_id
 from .queue import load_queue, save_queue
 from .pipeline import run_pipeline
-from .notify import render_email
+from .notify import render_email, render_deadline_reminders
 from .config import data_dir
 
 
@@ -25,6 +25,11 @@ def discover(settlements_path, profile_path=None, queue_path=None, sites_path=No
     queue, new_pending = run_pipeline(parsed, profile_path=profile_path, existing_queue=existing)
     save_queue(queue_path, queue)
     email = render_email(new_pending)
+
+    # Unactioned items near their deadline: needs_human must not rot silently.
+    reminders = render_deadline_reminders(queue, exclude_ids={r["id"] for r in new_pending})
+    if reminders:
+        email = f"{email}\n\n{reminders}" if email else reminders
 
     # Source health: a digest that's empty because sources were down is NOT the same
     # as "nothing new" — surface failed sources so partial discovery is visible.

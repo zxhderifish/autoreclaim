@@ -23,14 +23,14 @@ def save_queue(path, items: list[dict]) -> None:
 
 
 def upsert(items: list[dict], new_item: dict) -> list[dict]:
-    """Add new_item, or refresh an existing row by id while PRESERVING its status."""
+    """Add new_item, or refresh an existing row by id while PRESERVING its status
+    (and submitted_at — a weekly re-discovery must not reset a filed item)."""
     out = [dict(i) for i in items]
     for row in out:
         if row["id"] == new_item["id"]:
-            preserved_status = row.get("status")
+            preserved = {k: row[k] for k in ("status", "submitted_at") if row.get(k) is not None}
             row.update(new_item)
-            if preserved_status is not None:
-                row["status"] = preserved_status
+            row.update(preserved)
             return out
     out.append(dict(new_item))
     return out

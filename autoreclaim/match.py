@@ -20,6 +20,9 @@ def load_profile(path) -> dict:
         # Optional coarse location — lets matching include/exclude state-scoped
         # settlements (e.g. "Washington residents only"). Never street-level PII.
         "state": (data.get("state") or "").strip().lower(),
+        # Brands the user has explicitly said don't apply to them (recorded by the
+        # confirm flow) — a hard non-match, so they're never matched or asked again.
+        "ruled_out": [k.strip().lower() for k in data.get("ruled_out", []) if k.strip()],
     }
 
 
@@ -49,7 +52,8 @@ def score(settlement: Settlement, profile: dict) -> tuple[int, list[str]]:
     title_tokens = set(_TOKEN.findall(settlement.title.lower()))
     tag_tokens = {t.strip().lower() for t in settlement.category_tags}
     haystack = title_tokens | tag_tokens
-    reasons = [kw for kw in profile["keywords"] if kw in haystack]
+    ruled_out = set(profile.get("ruled_out", []))
+    reasons = [kw for kw in profile["keywords"] if kw in haystack and kw not in ruled_out]
     # de-dup while preserving order
     seen, ordered = set(), []
     for r in reasons:

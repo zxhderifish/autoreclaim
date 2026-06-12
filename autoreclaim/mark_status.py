@@ -23,6 +23,8 @@ def mark(item_id: str, status: str, note: str | None = None, queue_path=None) ->
 
 
 def main() -> None:
+    if len(sys.argv) < 3:
+        sys.exit("usage: mark_status <id> <status> [note...]")
     note = " ".join(sys.argv[3:]) or None
     mark(sys.argv[1], sys.argv[2], note=note)
     print(f"{sys.argv[1]} -> {sys.argv[2]}" + (f" ({note})" if note else ""))

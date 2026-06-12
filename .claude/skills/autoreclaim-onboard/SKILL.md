@@ -28,8 +28,16 @@ Also check `list_scheduled_tasks` for `autoreclaim-weekly` / `autoreclaim-file`.
   repo or `queue.jsonl`, **never `create_scheduled_task` over an existing task** — use
   `update_scheduled_task`. A common reason to re-run onboarding is that the code repo
   moved/renamed: if the scheduled task's prompt points at a path that no longer matches
-  `pwd`, offer to re-point it (that alone fixes the schedule). Only redo the steps the
-  user actually wants changed.
+  `pwd`, offer to re-point it (that alone fixes the schedule). Also **audit the existing
+  profile.json for missing fields**: older profiles predate `emails` (powers the free
+  data-breach scan) and `state` (state-scoped matching) — if either is absent, ask for it
+  (one AskUserQuestion) and MERGE it in; without `emails` the breach scan silently never
+  runs. And **sanity-check `pii.enc` WITHOUT reading the values** (placeholder PII makes
+  the filing step useless) — print only a verdict, never the fields:
+  ```bash
+  .venv/bin/python -c "from autoreclaim.pii import load_pii; from autoreclaim.config import data_dir; from onboarding.setup_pii import validate_pii; print('pii.enc OK' if not validate_pii(load_pii(data_dir()/'pii.enc')) else 'pii.enc has placeholder/invalid fields — re-run onboarding/setup_pii.py')"
+  ```
+  Only redo the steps the user actually wants changed.
 
 ## Step 1 — Environment
 ```bash
@@ -176,7 +184,15 @@ Default to / recommend the first option. Pick the path they choose:
   ```bash
   .venv/bin/python onboarding/setup_pii.py
   ```
-  Confirm only that `../autoreclaim-data/pii.enc` now exists (gitignored) — without reading it.
+  Then **validate it NOW, without reading the values** — setup_pii.py lets people "save
+  anyway" with placeholder junk, and if that slips through the user only finds out days
+  later when the first filing run can't fill a single form. Print only a verdict:
+  ```bash
+  .venv/bin/python -c "from autoreclaim.pii import load_pii; from autoreclaim.config import data_dir; from onboarding.setup_pii import validate_pii; bad=validate_pii(load_pii(data_dir()/'pii.enc')); print('pii.enc OK' if not bad else f'placeholder/invalid fields: {bad}')"
+  ```
+  If fields are flagged, say which ones and ask the user to re-run `setup_pii.py` before
+  you continue — do NOT move on to Step 6 with placeholder PII without telling them what
+  it breaks. (File is gitignored; never read or echo its contents.)
 
 - **"You record it for me"** (only after they chose this knowing the trade-off) → collect
   full name, address (line1/line2/city/state/zip), email, phone in chat, then write the

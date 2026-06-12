@@ -49,34 +49,49 @@ Use **Claude in Chrome** (`navigate`, `get_page_text`, `read_page`, `find`, `for
 Load them once up front. To find the real claim-form link, use `find` / `read_page` — do
 NOT use `javascript_tool` to read hrefs (the admin sites often block it).
 
-## 3. For EACH pending item
-
-   a0. **No `claim_url`?** Search once for the official settlement site (settlement title
-      + "settlement"). Found → write it back to the queue row (one-liner below) and
-      continue. Not found → it was probably aggregator filler; park it:
-      `.venv/bin/python -m autoreclaim.mark_status <id> needs_human "no official claim site found — verify this settlement is real before chasing it"`
-
-   a. **Eligibility first (honesty gate).** Read the settlement's eligibility conditions.
-      If qualifying depends on something only the user knows (received a breach notice,
-      bought X in a date range, a VIN, proof docs), ASK the user before filing. If they
-      don't qualify, or it needs proof you can't supply, park it WITH the reason —
-      `mark_status` takes a free-text note that shows up in the final table:
+## 3. Triage ALL items in ONE batch (honesty gate — don't interrogate serially)
+Most claims hinge on something only the user knows (received a breach notice, bought X
+in a date range, has a Class Member ID / VIN / receipts). Asking these one-by-one as you
+open each form turns the first confirm session into an interrogation and users bail.
+Instead:
+   a. Read every pending item's eligibility conditions FIRST (from the queue row; open
+      the claim site read-only if the row isn't specific enough).
+      - **No `claim_url`?** Search once for the official settlement site (settlement
+        title + "settlement"). Found → write it back to the queue row (one-liner in 3b)
+        and continue. Not found → it was probably aggregator filler; park it:
+        `.venv/bin/python -m autoreclaim.mark_status <id> needs_human "no official claim site found — verify this settlement is real before chasing it"`
+   b. **Resolve ID-gated items from email BEFORE asking the user.** For items whose form
+      wants a Class Member ID / Claim ID: the queue row may already carry
+      `class_member_id` (discovery found the notice email) → nothing to ask. Otherwise,
+      if an email tool is callable, search the inbox now (settlement name, administrator
+      name, "Class Member ID"); a found notice both proves class membership and removes
+      a question from the batch below.
+   c. Ask everything that's STILL unknown in ONE `AskUserQuestion` pass — multiSelect
+      checklists, grouped ("Which of these apply to you? ☐ I was a Comcast customer in
+      2023 ☐ I owned a 2011-2019 Toyota …", "Which notices/IDs do you have? ☐ Comcast
+      breach notice ☐ BofA class-member ID …"). Max 4 questions per call; batch
+      follow-ups.
+   d. From the answers, split the queue: **fileable now** (user qualifies, no ID/proof
+      gap) vs `needs_human` — mark the latter immediately, WITH the reason (free-text
+      note shows up in the final table):
       `.venv/bin/python -m autoreclaim.mark_status <id> needs_human "what's missing; where to get it; deadline; est. payout"`
+   e. **Sink the answers into the profile** so neither discovery nor a future confirm
+      ever re-asks: if an answer rules a brand out entirely ("I've never owned a
+      Toyota"), add it to `ruled_out` in `profile.json`; if it confirms one, make sure
+      it's in `keywords`. Merge — don't overwrite (commit profile.json with the queue in
+      step 4). Answers scoped to one settlement ("traded on Robinhood, but not in
+      2016-2018") belong in that item's `status_note`, not in `ruled_out`.
 
-      **ID-gated forms (Class Member ID / Claim ID + PIN):**
-      - Queue row already has `class_member_id` (discovery found the notice email) → use it.
-      - Form also wants a PIN → search the user's email for the administrator's notice
-        and read the PIN from there. The PIN is never stored anywhere — not in the queue,
-        not in notes; it goes from the email straight into the form.
-      - No `class_member_id` and the form demands one → search the email now (settlement
-        name, administrator name, "Class Member ID"). Still nothing → use the site's ID
-        lookup form if one exists; otherwise
-        `mark_status <id> needs_human "needs Class Member ID — check postal mail or the site's lookup form; deadline <date>"`.
-
-   b. **Open + pre-fill.** `navigate` to `claim_url`; if it's a landing page, `find` the
+## 3b. For EACH fileable item
+   a. **Open + pre-fill.** `navigate` to `claim_url`; if it's a landing page, `find` the
       "Submit Claim" link and navigate to the actual form (watch for a new tab). Read the
       form and `form_input` each field from PII (name, address, email, phone, payout
-      preference). Answer eligibility questions honestly from what the user told you.
+      preference). Answer eligibility questions honestly from what the user told you in
+      the triage pass.
+      - **ID + PIN forms:** use the `class_member_id` from the queue row / triage. If the
+        form also wants a PIN, read it from the administrator's notice email at fill
+        time. The PIN is never stored anywhere — not in the queue, not in notes; it goes
+        from the email straight into the form.
       - **Account-identifier fields** ("email/phone associated with your X account"):
         don't assume the contact email — show the user the addresses from `profile.json`
         `emails` and ask which one that account uses.
@@ -85,12 +100,10 @@ NOT use `javascript_tool` to read hrefs (the admin sites often block it).
         ```bash
         .venv/bin/python -c "from autoreclaim.queue import load_queue, save_queue; from autoreclaim.config import data_dir; p=data_dir()/'queue.jsonl'; q=load_queue(p); [r.update({'deadline': '<ISO-date>'}) for r in q if r['id']=='<id>']; save_queue(p, q)"
         ```
-        (same pattern with `'claim_url'` for step a0.)
-
-   c. **STOP before submit.** Show a table of what you filled + the attestation text, and
+        (same pattern with `'claim_url'` for the no-link case in 3a.)
+   b. **STOP before submit.** Show a table of what you filled + the attestation text, and
       wait for the user's explicit "submit <name>". Never click submit without it.
-
-   d. On their OK, click submit, then:
+   c. On their OK, click submit, then:
       `.venv/bin/python -m autoreclaim.mark_status <id> submitted`
 
 ## 4. Finish
